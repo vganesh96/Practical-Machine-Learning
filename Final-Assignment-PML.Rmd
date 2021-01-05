@@ -1,0 +1,68 @@
+---
+title: "Final Assignment"
+author: "Venkat Ganesh"
+date: "1/4/2021"
+output: html_document
+---
+## Summary 
+
+This problem involved predicting the type of activity based on predictor variables obtained from measurements of accelerometers. The first step of my approach was to see if I could do any data cleaning. It was immediately apparent that there were columns with NA measurements, so I wanted to exclude these from my predictors. I also observed some variables which I did not believe would have any predictive capabilities so I removed those. Lastly I used the nearZeroVar function to remove predictors with variances near 0, as these would not have much predictive power. After cleaning, my first modeling approach was to fit a classification tree. This would give us a relatively fast model fit, along with outputting interpretable results. The model ended up being not very accurate, getting an accuracy around 50%. So I instead tried a Random Forest model, which ended up giving me a 99.5% accuracy on the holdout set, and yielded 100% results in the out of sample test set provided for us.
+
+## Read Data and load packages
+```{r}
+knitr::opts_chunk$set(echo = TRUE)
+library(caret)
+library(dplyr)
+library(rattle)
+train_raw <- read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv")
+test_raw <- read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv")
+
+```
+
+## data cleaning
+
+```{r}
+head_data <- head(train_raw,5)
+train <- train_raw[, colSums(is.na(train_raw)) == 0] 
+test <- test_raw[, colSums(is.na(test_raw)) == 0] 
+train <- train[,!(colnames(train) %in% c("X","user_name","raw_timestamp_part_1","raw_timestamp_part_2","cvtd_timestamp","new_window","num_window"))]
+train$classe <- as.factor(train$classe)
+nearzerocolumns <- nearZeroVar(train)
+train <- train[, -nearzerocolumns]
+
+```
+
+## Classification Tree Modeling
+
+```{r}
+set.seed(14231)
+trainIndex <- createDataPartition(train$classe, p = 0.75)[[1]]
+validation <- train[-trainIndex,]
+train <- train[trainIndex,]
+modelFit <- train(classe~.,method = "rpart",data = train)
+modelTest <- predict(modelFit, validation)
+confusionMatrix(modelTest, validation$classe)
+```
+
+## Classification tree
+
+```{r}
+fancyRpartPlot(modelFit$finalModel)
+```
+
+## Random Forest Modeling
+
+```{r}
+set.seed(14232)
+modelFit_rf <- train(classe~.,method = "rf",data = train, allowParallel=TRUE)
+modelTest_rf <- predict(modelFit_rf, validation)
+confusionMatrix(modelTest_rf, validation$classe)
+```
+
+
+# Out of Sample Results
+```{r}
+predict(modelFit_rf, test)
+```
+
+
